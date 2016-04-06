@@ -1,0 +1,125 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Tue Mar  1 01:34:53 2016
+@author: Bernard
+"""
+
+from pandas import Series, DataFrame
+import pandas as pd
+import numpy as np
+import os
+import matplotlib.pylab as plt
+from sklearn.cross_validation import train_test_split
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.metrics import classification_report
+import sklearn.metrics
+
+
+os.chdir("C:\TREES")
+
+"""
+Data Engineering and Analysis
+"""
+#Load the dataset
+
+AH_data = pd.read_csv('gapminder_ghana_updated.csv')
+
+# convert to numeric format
+AH_data['incomeperperson'] = pd.to_numeric(AH_data['incomeperperson'], errors='coerce')
+AH_data['lifeexpectancy'] = pd.to_numeric(AH_data['lifeexpectancy'], errors='coerce')
+AH_data['exports'] = pd.to_numeric(AH_data['exports'], errors='coerce')
+AH_data['inflation'] = pd.to_numeric(AH_data['inflation'], errors='coerce')
+
+#drop all NaN values
+data_clean = AH_data.dropna()
+
+
+
+#convert quantitative responsive variable to binary categorical variable
+def lifeExpectancyCat (row):
+    if row["lifeexpectancy"]<=60:
+        return 0
+    elif row["lifeexpectancy"] >60:
+        return 1   
+
+
+data_clean["lifeExpectancyCat"] = data_clean.apply(lambda row: lifeExpectancyCat(row), axis =1)
+
+#creating categorical explanatory variables out of exports
+def exportsCatGrp (row):
+    if row["exports"] <=40:
+        return 0
+    elif row["exports"] >40:
+        return 1
+    
+        
+data_clean["exportsCatGrp"] = data_clean.apply(lambda row:exportsCatGrp(row), axis =1)
+
+
+#creating a categorical explanatry variable out of incomeperperson
+def incomeLevelGrp (row):
+    if row["incomeperperson"] <=2200:
+        return 0
+    elif row["incomeperperson"] >2200:
+        return 1
+        
+data_clean["incomeLevelGrp"] = data_clean.apply(lambda row:incomeLevelGrp(row), axis =1)
+
+
+#checking how binary values are depicted in decision tree
+#which of the values in the square brackets are 1s and which are 0s
+valCountE = data_clean["incomeLevelGrp"].value_counts(sort=False, dropna=True)
+print(valCountE)
+
+#data_clean = AH_data
+data_clean.dtypes
+
+data_clean.describe()
+
+
+"""
+Modeling and Prediction
+"""
+#Split into training and testing sets
+predictors = data_clean[['incomeLevelGrp','exportsCatGrp']]
+
+
+targets = data_clean.lifeExpectancyCat
+
+pred_train, pred_test, tar_train, tar_test  =   train_test_split(predictors, targets, test_size=0.4)
+
+
+pred_train.shape
+pred_test.shape
+tar_train.shape
+tar_test.shape
+
+
+#Build model on training data
+classifier=DecisionTreeClassifier()
+classifier=classifier.fit(pred_train,tar_train)
+
+predictions=classifier.predict(pred_test)
+
+sklearn.metrics.confusion_matrix(tar_test,predictions)
+sklearn.metrics.accuracy_score(tar_test, predictions)
+
+
+#Displaying the decision tree
+from sklearn import tree
+#from StringIO import StringIO
+from io import StringIO
+#from StringIO import StringIO 
+from IPython.display import Image
+out = StringIO()
+tree.export_graphviz(classifier, out_file=out)
+import pydotplus
+graph=pydotplus.graph_from_dot_data(out.getvalue())
+Image(graph.create_png())
+
+#Save the decision tree as an image
+with open('decision_tree_image12.png', 'wb') as f:
+
+    f.write(graph.create_png())
+
+
